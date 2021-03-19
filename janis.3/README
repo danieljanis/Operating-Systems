@@ -1,0 +1,114 @@
+Author: Daniel Janis
+Date: 10/20/20
+Course: CS 4760-002
+Project: Assignment 3 - Message Passing and Operating System Simulator
+
+PURPOSE:
+
+		[oss.cpp] ./oss [-c x] [-l filename] [-t z]
+
+The executable "oss" is designed to detect command-line arguments when called.
+These arguments allow the user to set the limits on various options (shown below
+by the [-h] command). Once handling the limitations on  max processes at once (concurrent
+processes), the logfile, and the timer (in seconds) this executable can move onto its main
+task. Basically, this program will fork and exec child processes (until a concurrent limit)
+while also taking into account the total number of processes. Once 100 processes have been
+ran, OSS will terminate all children and then exit (after freeing memory). Another criteria 
+is the clock in shared memory. Once this clock in shared memory goes over 2 seconds, the 
+program will terminate all children and then exit (after freeing memory). Finally, if
+CTRL+C is pressed at any point, OSS will terminate all children and then exit (after
+freeing memory).
+
+Two Message Queues are used to protect the critical region, allowing only one child process
+to execute inside of this critical region at once. Inside of OSS's critical region, the
+shared memory clock gets incremented by 100 nanoseconds. If a message was received from USER,
+and the child's PID in shared memory was set to 0, then a new child is allowed to enter the
+critical region (meaning that the old child has since terminated its USER process).
+
+		[user.cpp] ./user
+
+The executable "user" gets called from OSS. Once this program is running, it receives a
+message from OSS telling USER to enter the critical region. Inside this critical region,
+a "time to terminate" is calcualted based on the current shared memory clock values. This
+child process will continue to execute until the shared memory clock has surpassed the
+"time to terminate" value (meaning that the duration for this child has ended). 
+
+Once surpassing the "time to terminate", this child will look at the PID of the running
+child process and store it in shared memory and then send a message to OSS that the child
+has now left the critical section.
+
+Back in OSS: if the shared memory PID is > 0 then we know that the previous child has
+terminated and is no longer in the critical section. This means another child process can 
+be spawned and also guarantees that only one child process can be inside the critical
+region at once.
+
+USAGE:
+
+[1] ./oss [-c x] [-l filename] [-t z]
+
+    ** [-c x] where x is the number of children allowed to exist at one time in the system.
+                           (Default: 5) where x is in the range of 1-27
+
+    ** [-t z] where z is the max time you want the program to run before terminating.
+                           (Default: 100) where z must be a positive non-zeo number.
+
+    ** [-l filename] where filename is the name of the log file to output information.
+                           (Default: logfile.log)
+    
+
+[2] ./oss -h
+
+    ** [-h] will display how the project should be run and then terminate
+
+[3] ./oss
+
+    ** runs the program with the defaults in place
+
+MAKEFILE:
+
+[1] make
+    
+    * this will compile master and palin for execution
+
+[2] make clean
+
+    * this will remove all object files and executables
+
+[3] make clean-all
+
+    * this will remove all object files, executables, and log files!
+
+VERSION CONTROL:
+
+I have used git for my version control during this assignment. Versioning is done
+with git and I have committed changes as I progresses throughout this assignment.
+The directory .get/ contains information. Type "git log --oneline" to see the
+oneline version of the commit log.
+
+COMMENTS:
+
+    -- It will VERY RARELY  miss setting one of the group PIDs, which gives me trouble trying to
+       kill all of the currently running processes because one of them ends up not being killed.
+       Some of the time, very rarely, one of the children will continue executing and as it tries 
+       to connect to shared memory I will get an error (this happens at the very end of my termination,
+       so I have likely already free'd my memory, which is where this error arises). Basically, that 
+       child that doesn't get killed right away will try to connect to shared memory after I have 
+       deleted the shared memory, so to fix this I kill the parent process if the group ID fails 
+       to kill all of the children processes.
+
+    -- If a child process was forcibly terminated I print a message to the screen containing that process's
+       PID.
+
+    -- I only reliably hit the 2 second mark when I use a -c of size 1 (only 1 concurrent process)
+       Once the 2 second mark gets passed (on the shared memory clock) my program terminates all
+       child processes and then itself.  To test this termination criteria, use the following:
+ 
+            ./oss -c 1 -t 999
+
+    -- The countdown timer (20 second default) can be tested using the following command
+
+            ./oss -c 1
+
+    -- To test the 100 process limit, use the following command:
+
+            ./oss -c 2
