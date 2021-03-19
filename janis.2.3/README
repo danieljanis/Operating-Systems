@@ -1,0 +1,96 @@
+Author: Daniel Janis
+Date: 10/8/20
+Course: CS 4760-002
+Project: Assignment 2 - Practice Shared Memory and IPC
+
+PURPOSE:
+
+		[master.cpp] ./master [-n x] [-s x] [-t time] infile
+
+The executable "master" is designed to detect command-line arguments when called.
+These arguments allow the user to set the limits on various options (shown below
+by the [-h] command). Once handling the limitations on number of processes, max
+processes at once, and the timer, it then goes to read into shared memory. First 
+it attaches to the shared memory and then reads from a given infile the strings.
+These strings are stored in an array of strings inside of shared memory so that they
+can be checked inside of "palin". There is one string per line, so this program will
+fork/exec child processes according to the limiting options. When exec is called, the
+"palin" executable replaces the current process image with a new process image and 
+begins executing.
+
+		[palin.cpp] ./palin XX
+
+The executable "palin" gets called from master, given an argument XX which translates
+into a unique Indexing value, passed from the exec command in master.cpp. This XX argument
+allows for the program to keep track of which processes are and aren't allowed into the
+critical section. Palin attaches to shared memory and then determines if the word at
+the index is a palindrome or not. After determining if the word from shared memory is a
+palindrome or not, the multiple process Peterson's Algorithm begins to check, based on
+the number of words read into shared memory, which process to allow into the critical
+section. Inside the critical section, printing operations based on if the word was a 
+palindrome or not takes place, along with printing to a log file each processes PID
+along with its unique INDEX value and the String from the file. Once the process that
+was allowed into the critical section is finished, code is executed to exit the critical
+section. This continues until the [-n x] option is satisfied (max number of child processes
+allowed to be created during the entirity of the program).
+
+USAGE:
+
+[1] ./master [-n x] [-s x] [-t time] infile 
+
+    ** [-n x] where x is the max total of child processes master will ever create
+                           (Default: 4) where x is in the range of 1-27
+
+    ** [-s x] where x is the number of children allowed to exist at one time in the system
+                           (Default: 2) where x is in the range of 1-20
+
+    ** [-t time] where time is the max time you want the program to run before terminating
+                           (Default: 100)
+    
+    ** infile
+              - this can be any file containing strings separated with newline characters
+
+
+[2] ./master -h
+
+    ** [-h] will display how the project should be run and then terminate
+
+[3] ./master
+
+    ** this should give an error, including a usage line.
+
+MAKEFILE:
+
+[1] make
+    
+    * this will compile master and palin for execution
+
+[2] make clean
+
+    * this will remove all object files and executables
+
+VERSION CONTROL:
+
+I have used git for my version control during this assignment. Versioning is done
+with git and I have committed changes as I progresses throughout this assignment.
+The directory .get/ contains information. Type "git log --oneline" to see the
+oneline version of the commit log.
+
+COMMENTS:
+
+While the program checks if a string is a palindrome or not, punctuation, capitalization,
+and spaces are all ignored. After the palindrome check is complete, the original string
+gets put back into memory so that the output and log files contain the original strings,
+rather than the modified strings.
+
+Since there wasn't a limit described in the assignment 2 prompt regarding how many
+strings an infile could contain, I have limited the number of words allowed into my shared 
+memory array to 100 strings. A single string will be skipped at
+the 100th string due to memory running out, so make sure the files you test are below 100.
+This can be corrected by changing the words[][] char array indexing in the shared.h file.
+
+I have ran the testfiles "test.txt", "test1.txt", "test2.txt", "test3.txt", and "test4.txt". 
+While running these files, I used different [-n x], [-s x], and [-t time] options, making 
+sure that proper error handling was in place. The program did not crash for the test files 
+mentioned above and there weren't any errors unless the options went out of their allowed 
+ranges.
