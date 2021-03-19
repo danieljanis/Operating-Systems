@@ -1,0 +1,134 @@
+Author: Daniel Janis
+Date: 11/19/20
+Course: CS 4760-002
+Project: Assignment 5 - Resource Management
+
+PURPOSE:
+
+ [oss.cpp] ./oss
+
+ This program serves as the master process in an Simulated OS Scheduler. When this simulator starts
+ running it will fork multiple children at random times. The randomness of these child processes being 
+ forked is created with the use of a clock which is stored in shared memory ("shmem") with seconds and nanoseconds.
+ At the start, this program allocates shared memory for different matrices which are used to determine if the state of the system will
+ become deadlocked (if a certain resource request was granted, like if it will deadlock or not). There are
+ a total of 20 resource descriptors and ~15-25% of them may be shared resources. Once the resource vector
+ with resource descriptors has been created, a Max Claims array is formed, storing a random value
+ from 1-10, which will be the initial instances for each resource class.
+
+ After resources get set up, fork a user process at random times (from 1-500 ms of the logical clock).
+ A bitvector (bitv) is used to make sure that only 18 processes are active in the system at once. 
+
+ Finally, this program decides whether the received resource request should be allocated to the process
+ or not. This is done using a deadlock avoidance (safety) algorithm. This algorithm makes sure that
+ resources will NOT be allocated if that allocation could potentially lead to a deadlock.
+     - If a process releases resources, it will update the allocated and available tables in shared memory and
+       then see if it will be able to unblock any blocked processes without encountering a deadlock.
+     - If a process requests resources and the algorithm says that the request would put the system into an
+       UNSAFE state, then that process gets put into a blocked 2D array (which will periodically attempt
+       to be unblocked, whenever a process releases any resources).
+
+       Termination Criteria: New processes stop being generated after 5 seconds real-time passes,
+                             or when a total of 40 processes have been created and exited
+
+ [user.cpp] ./user_proc
+
+ Every time this program runs, the user process that it represents will generate
+ an array of Maximum Claims (using a random number, from 0 to the maximum resources in
+ its resource class descriptor (from OSS))
+
+ This program continually looks at the shared memory clock and will eventually
+ request or release resources based on a bound (acquire_resources). When the shared
+ clock + this bound have been surpassed, this user_proc will be allowed to request
+ or release resources. Originally, when this user_proc is allocated 0 resources for
+ every resource class, it will have to make a request.
+
+ Requests are made by sending a message on the message queue. After sending a message
+ this user process waits around for a message back indicating that the request was granted.
+ At this time, another random bound is created and this process will loop again until
+ shared time + that random bound time have been surpassed.
+
+ There is a 70% chance for a process to make a request, and a 30% chance for the process 
+ to make a release of a resource. When requesting, this program makes sure that
+ the maximum available resource count's do not get exceeded, so that we keep an accurate count.
+
+ At random times from 0 to 250 ms, the process will check and see if it should terminate. If
+ so, it should release all of its allocated resources by sending a message to OSS telling OSS
+ which process had terminated. This can ONLY happen after the process has ran for AT LEAST
+ ONE SECOND (I've had trouble getting this to work, ran out of time while testing to get it working)
+
+USAGE:
+
+[1] ./oss
+ 
+    ** runs the simulation (without verbose mode)
+
+[2] ./oss -v
+ 
+    ** runs the simulation (with verbose mode)
+
+[2] ./oss -h
+ 
+    ** prints the usage line for this command
+
+MAKEFILE:
+
+[1] make
+    
+    * this will compile oss and user_proc for execution
+
+[2] make clean
+
+    * this will remove all object files and executables
+
+[3] make clean-all
+
+    * this will remove all object files, executables, and log files!
+
+VERSION CONTROL:
+
+I have used git for my version control during this assignment. Versioning is done
+with git and I have committed changes as I progresses throughout this assignment.
+The directory .get/ contains information. Type "git log --oneline" to see the
+oneline version of the commit log.
+
+COMMENTS:
+ 
+  Unfortunately I ran out of time trying to get this project working 100%. Almost
+  all of the key features have been accounted for, the remaining
+  issues in my code are as follows:
+
+    - Does not terminate often enough (or at all from what I can tell)
+
+    - Does not unblock processes often enough
+
+    - From what I can tell the deadlock avoidance is working,
+      I've been playing with it for a few days now and I just don't
+      have the time to verify 100% that it works every single time 
+      in every single situation.
+
+    - I do not calculate statistics
+
+  Whats working:
+
+    - Bitvector making sure only 18 processes can be active at once
+    - Requests, releases, and termination all do what they're meant to do
+       (user.cpp is where I am messing up with terminating)
+    - Verbose (on and off, both working)
+    - Blocking of requests that get denied is working
+    - Unblocking is working
+    - Safety algorithm (deadlock avoidance is working)
+
+ This has been the hardest project in this course for me thus far. I've spent about 40+ hours so far 
+ trying to figure out what I am doing wrong with the deadlock avoidance. Early on while testing, I had 
+ the outputs filling up the allocation array and the blocked queue was a lot more active with processes getting 
+ blocked and unblocked. If I had more time I would try and get that working and more lively again but unfortunately 
+ I need to turn this in.
+
+ My log file prints the allocated and the blocked matrices every 5 granted resource requests (the
+ reasoning for this is because I could not get my processes to leave the blocked queue, so
+ my program never ran for very long to get the outputs after 20 granted resource requests)
+
+ There is either a problem I am not realizing with my deadlock avoidance algorithm, or there is an issue
+ with how I terminate processes (or when I'm allowed to terminate), given more time I think I would be 
+ able to figure it out.
