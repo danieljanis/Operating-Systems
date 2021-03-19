@@ -1,0 +1,137 @@
+Author: Daniel Janis
+Date: 11/5/20
+Course: CS 4760-002
+Project: Assignment 4 - Simulated OS Scheduler
+
+PURPOSE:
+
+		[oss.cpp] ./oss
+
+ This program serves as the master process in an Simulated OS Scheduler.
+ When this simulator starts running it will fork multiple children at random times.
+ The randomness of these child processes being forked is created with the use of
+ a clock which is stored in shared memory ("shmem") with seconds and nanoseconds.
+ 
+ Inside of "shmem", a Process Table ("Pcb procs" inside of shared.h) of size 18 is
+ created. Only 20 processes are allowed to be running at once, so we can only spawn 18
+ children. Each of these indices contain a Process Control Block (struct Pcb in shared.h)
+ which stores critical timing information about the current child processes in the system.
+ The "Pcb" contains total CPU time, total time in the system, time used during the last
+ burst, the local simulated pid and the process priority.
+
+ Local to oss.cpp, a bitset named "bitv" of size 18 is created to help keep track of the
+ process control blocks (simulated_PID's) that are already taken (1 if taken, 0 if not)
+
+ This program will generate user processes at random intervals, based on the values 
+ "MAX_TIME_SE"C and "MAX_TIME_NSEC" in shared.h
+
+ Time is simulated in this system by incrementing the shared clock. If a child ./user_proc
+ uses some time, this clock should be advanced to indicate the used time. If ./oss does 
+ something that would take some time in a real OS, the clock should be advanced to indicate
+ a small amount of time spent by ./oss.
+
+ Once the random time to generate a new process has elapsed, this program will initialize
+ the Pcb for the new process, and then fork the process. The child process wil execl 
+ ./user_proc and this will happen about once every ~randomized~ second!
+
+ This program controls concurrency for every ./user_proc. The main while() loop on line ###
+ is where processes get set up, time is generated to launch a new process and then using
+ the message queue (buf1) a process gets scheduled to run by sending a message! After sending
+ that message, it waits to receive a message (buf2) which will contain information like:
+ did the program get INTERRUPTED, or TERMINATE, or RUN FOR ITS FULL QUANTUM, along with the
+ time that it ran in nanoseconds. If the process table is full (bitv is full of 1's), then
+ a new random time to try to generate a new process is determinted. Every time the while() 
+ loop actually loops, the clock gets advanced using the function "dispatcher_does_work()" 
+ which simulates overhead activity in the system.
+
+ SCHEDULING ALGORITHM (Multi-level Feedback Queue):
+ Assuming there is more than one process in the system, a process from the highest priority
+ queue at the very front of the queue is selected (unless all queues are empty) and it is
+ scheduled to execute. There are 4 queues, queue1 is the highest priority and queue4 is the
+ lowest. "queue1" has a quantum of QUANT_1 (from shared.h) and the quantum doubles every time
+ a process gets moved down a level in the queues. 
+    1. when a process used its entire quantum, move it down 1 priority queue
+    2. if a process leaves a blocked queue (determined by a random time from 0-3 seconds and
+       0-1000 nanoseconds PLUS the current time that is calculated whenever the process
+       gets blocked) it gets moved to the highest priority queue (queue1)
+ Once the process has been selected, it gets dispatched by sending the process a message (buf1)
+ indicating how much of a quantum it has to run. Since this scheduling takes time, before launching
+ the process ./oss should increment the clock for the amount of work that it did (100-1000 nanoseconds)
+
+ This program ends and prints statistics to a log file whenever 100 processes have been generated, or
+ whenever 3 real-life seconds have passed, or when CTRL+C is pressed.
+
+         [user.cpp] ./user_proc
+
+ This program gets the simulated PID that was passed from the main program and then it
+ performs a calculation to see if it will terminate or not, where the chances to terminate
+ are fairly low.
+
+ If this random choice decides NOT to terminate, it goes into a while() loop where it will
+ receive a message from the main program containing:
+        1. simulated PID (which is why "simPID" was received from the execl in the main program)
+              - this makes sure the msgrcv only looks for that simulated PID
+        2. Priority level (this is the time quantum given to run)
+ Once the message is received, a random 0 or 1 will decide if this child will run for its full
+ quantum or for only part of its quantum (and then it calculates from [0, quantum] and sends
+ this back in a message to the main program using msgsnd. Along with the quantum, if a process
+ did not use its entire quantum, that means it got INTERRUPTED(1) and if a process did use its
+ entire time then it would send back a RAN FULL QUANTUM(2), so that the main program knows how
+ this child finished (1 or 2).
+
+ If this random choice decides to TERMINATE(3), once the message is received containing how long
+ of a time quantum this process was given, a random time from [0, quantum] is calculated
+ representing how long this child process ran on the core before terminating. This random time 
+ along with the message to termiante(3) get sent back to the main program using msgsnd.
+
+ After all of this (if the choice was to terminate), this child process will terminate and
+ free up the shared memory using shmdt(shmem);
+
+
+USAGE:
+
+[1] ./oss - runs the simulation
+
+MAKEFILE:
+
+[1] make
+    
+    * this will compile oss and user_proc for execution
+
+[2] make clean
+
+    * this will remove all object files and executables
+
+[3] make clean-all
+
+    * this will remove all object files, executables, and log files!
+
+VERSION CONTROL:
+
+I have used git for my version control during this assignment. Versioning is done
+with git and I have committed changes as I progresses throughout this assignment.
+The directory .get/ contains information. Type "git log --oneline" to see the
+oneline version of the commit log.
+
+COMMENTS:
+ 
+    -- The logfile ("logfile.log") will contain the first 1994 lines of output from my simulated system,
+       along with the final 6 lines representing how the system ran (statistics). So, a total of 2000 lines.
+
+    -- Lines 532-572 can be uncommented inside of my oss.cpp to allow for the queues to be printed
+       as the system runs, this was getting kind of hectic so I decided to just print the statistics
+       to the screen once the simulation ended. 
+
+    -- If a child process was forcibly terminated I no longer print or log any messages (I can add this
+       back in if it was necessary)
+
+    -- Currently as it is, this programs child processes will utilize the CPU core for
+       roughly ~47% of its time in system. I have a feeling that this is due to the fact that when all of the
+       queues are empty, I did not check each of the currently blocked processes to see if I could
+       resume them, before incrementing the clock to the time where a new process would be generated.
+       If what I am thinking was right, I could have done that to drastically cut down on the CPU idle
+       time but unfortunately I thought about it way too late into having this thing running "properly"
+       and I did not want to mess anything up just before submitting this assignment! I can always add this
+       check in though, and hopefully reduce the idle time. Hopefully I got close enough to what you were
+       expecting and I would like to take this time to apologize for how long my main() function is in oss.cpp.
+
