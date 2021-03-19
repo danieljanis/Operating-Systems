@@ -1,0 +1,13 @@
+palindromes
+dog
+cat
+tat
+hat
+lol
+racecar
+40404
+0404
+one
+two
+three
+002200

@@ -1,0 +1,53 @@
+Author: Daniel Janis
+Course: CS 4760 - Assignment 1
+Date: 9/22/2020
+
+This executable "proc_fan" takes input from a source that can be funneled into
+it. "proc_fan" will read the file funnled into it line by line, forking a new
+process for each line and executing that line with the given arguements. The amount
+of processes is limited based on the usage of the "proc_fan" program. The usage
+for the "proc_fan" command is shown below:
+
+USAGE:
+
+[1.] ./proc_fan -n [#] 
+
+    ** where the [#] is the option to indicate the maximum number
+       of processes allowed to be generated at once (limited from 1-27)
+
+    ** you can funnel an input file containing various lines of
+       command-line-containing executables here like so:
+
+           ./proc_fan -n 2 < testing.data
+    
+    *** where testing.data contains many lines of command-lines to execute
+
+[2.] ./proc_fan -h
+
+    ** this will print a usage message and exit
+
+[3.] ./proc_fan
+
+    ** this should give an error, including a usage line.
+
+VERSION CONTROL:
+I have used git for my version control for this assignment. Versioning is done
+with git and I have committed changes as I progresses throughout this assignment.
+
+COMMENTS:
+
+- There was an error that I had encountered when trying to run a file containing
+  more than 28 command-lines with the option of -n 28. This problem occurred when
+  a child had failed to fork and mentioned that the "resource was unavailable."
+  Because of this I have chosen to limit the user to 27 active processes, due to the
+  off-chance that this could happen again (I tested files with 27 commands and -n 27 
+  did not produce a similar error).
+
+    *** I have these test files saved in a copy of this directory for testing  ***
+               testing.data contains 5 command-lines, no errors
+               testing1.data contains 1 command-line, no error
+               testing2.data contains 12 command-lines, no errors
+               testing3.data contains 1 command-line with 3 arguments, no errors
+               testing4.data contains 1 jibberish sentence,
+                   - gives an error, failed to execute the child 
+               testing5.data contains a ton of command-line arguments
